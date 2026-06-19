@@ -1,0 +1,24 @@
+22:14:53 | === Запуск агента ===
+22:14:53 | Провайдер LLM: dryrun
+22:14:53 | Каталог прогона: output
+22:14:53 | Резюме прочитано: data/resume.txt (593 симв.)
+22:14:53 | Агент понял профиль из резюме:
+22:14:53 |   роль:    ml engineer, ai engineer, nlp engineer
+22:14:53 |   опыт:    (не задан)
+22:14:53 |   уровень вакансий для поиска: intern, junior
+22:14:53 |   навыки:  python, pytorch, machine learning, deep learning, nlp, llm, rag, transformers, sql, numpy, pandas, docker, git
+22:14:53 |   формат:  remote
+22:14:53 |   город:   -
+22:14:53 | Загружено: 14 | валидных: 11 | битых: 2 | дублей: 1
+22:14:53 | После hard-фильтра: 10 (отсеяно по уровню: 1)
+22:14:53 | Разбор v006 (Junior ML Engineer) score=72.3 ...
+22:14:53 |   режим: rule_based; приоритет: high
+22:14:53 | Разбор v001 (ML Engineer Intern) score=71.6 ...
+22:14:53 |   режим: rule_based; приоритет: high
+22:14:53 | Разбор v003 (NLP Engineer (Junior)) score=70.5 ...
+22:14:53 |   режим: rule_based; приоритет: high
+22:14:53 | Разбор v002 (Junior AI Engineer) score=67.5 ...
+22:14:53 |   режим: rule_based; приоритет: medium
+22:14:53 | Разбор v007 (AI Research Intern) score=58.2 ...
+22:14:53 |   режим: rule_based; приоритет: medium
+22:14:53 | Готово. Результат: output/report.md (+ trace.json, run.log)

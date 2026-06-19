@@ -1,0 +1,10 @@
+# Core dependencies. Only stdlib + a few small libs.
+# LLM call is done via plain HTTP (urllib) to stay provider-agnostic and
+# dependency-light, so no openai/groq SDK is strictly required.
+PyYAML>=6.0
+pydantic>=2.0
+pytest>=7.0
+
+# Парсинг резюме (опционально: нужны только для pdf/docx).
+pypdf>=4.0
+python-docx>=1.1
