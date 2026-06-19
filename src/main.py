@@ -24,11 +24,16 @@ from .config import (
     load_criteria,
     resolve_provider,
 )
-from .llm import CandidateProfile, analyze, extract_profile
+import json
+
+from .fetch_telegram import TelegramError, fetch_posts, normalize_channel
+from .llm import CandidateProfile, analyze, extract_profile, extract_vacancies_from_text, llm_available
 from .loader import LoaderError, load_vacancies
 from .report import RunLogger, render_report, write_artifacts
 from .resume import ResumeError, extract_text
 from .scoring import filter_and_score
+
+FETCHED_FILE = "data/fetched_vacancies.json"  # сюда пишем вакансии из telegram/pdf (не трогаем мок)
 
 
 def _load_dotenv(path: str = ".env") -> None:
@@ -98,7 +103,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="AI-агент подбора AI/ML вакансий по резюме")
     p.add_argument("--config", default="config.yaml")
     p.add_argument("--output", help="каталог артефактов (по умолч. runs/<дата>__<резюме>__<провайдер>)")
-    p.add_argument("--input", default="data/vacancies.json", help="JSON-файл вакансий")
+    p.add_argument("--input", default="data/vacancies.json", help="JSON-файл вакансий (source=file)")
+    p.add_argument("--source", choices=["file", "telegram", "pdf"], default="file",
+                   help="источник вакансий (одиночный; для нескольких см. --sources)")
+    p.add_argument("--sources", default="",
+                   help="несколько источников через запятую, напр. file,telegram")
+    p.add_argument("--tg-channels", dest="tg_channels", default="",
+                   help="каналы Telegram через запятую (ссылки/имена), для --source telegram")
+    p.add_argument("--tg-limit", dest="tg_limit", type=int, default=20,
+                   help="сколько постов на канал тянуть")
+    p.add_argument("--pdf-vacancies", dest="pdf_vacancies", default="",
+                   help="путь к PDF/txt с вакансиями, для --source pdf")
     p.add_argument("--resume", help="файл резюме (pdf/docx/txt/md); по умолч. из config")
     p.add_argument("--criteria", default="criteria.md", help="критерии (fallback, если нет резюме)")
     p.add_argument("--top-n", type=int, dest="top_n", help="сколько вакансий разбирать (топ по score)")
@@ -106,6 +121,75 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--yes", action="store_true", help="не спрашивать подтверждение (для тестов/CI)")
     p.add_argument("--provider", choices=["auto", "gemini", "groq", "openrouter", "cerebras", "dryrun"])
     return p
+
+
+def parse_sources(args) -> list[str]:
+    """Список источников: --sources (через запятую) или одиночный --source."""
+    raw = args.sources.split(",") if args.sources else [args.source]
+    seen, out = set(), []
+    for s in (x.strip() for x in raw):
+        if s and s not in seen:
+            seen.add(s)
+            out.append(s)
+    return out or ["file"]
+
+
+def _records_from_telegram(args, config, provider, api_key, log: RunLogger) -> list[dict]:
+    channels = [c.strip() for c in args.tg_channels.split(",") if c.strip()]
+    if not channels:
+        log.log("  telegram пропущен: не заданы каналы")
+        return []
+    posts: list[str] = []
+    for ch in channels:
+        try:
+            got = fetch_posts(ch, limit=args.tg_limit)
+            log.log(f"Telegram @{normalize_channel(ch)}: получено постов {len(got)}")
+            posts.extend(got)
+        except TelegramError as e:
+            log.log(f"  пропускаю канал {normalize_channel(ch)}: {e}")
+    return extract_vacancies_from_text(posts, "tg", config, provider, api_key)
+
+
+def _records_from_pdf(args, config, provider, api_key, log: RunLogger) -> list[dict]:
+    path = args.pdf_vacancies
+    if not path or not Path(path).exists():
+        log.log(f"  pdf пропущен: не найден файл {path}")
+        return []
+    text = extract_text(path)  # переиспользуем парсер резюме
+    blocks = [b for b in text.split("\n\n") if b.strip()]
+    return extract_vacancies_from_text(blocks or [text], "pdf", config, provider, api_key)
+
+
+def gather_input(args, sources: list[str], config, provider, api_key, log: RunLogger) -> str:
+    """Собрать вакансии из всех выбранных источников в один файл. Вернуть путь.
+
+    Только file -> используем args.input как есть (мок не дублируем).
+    Иначе -> объединяем записи в FETCHED_FILE (дедуп сделает loader).
+    """
+    if sources == ["file"]:
+        return args.input
+
+    records: list[dict] = []
+    if "file" in sources:
+        try:
+            data = json.loads(Path(args.input).read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                records += data
+                log.log(f"Файл {args.input}: добавлено записей {len(data)}")
+        except Exception as e:
+            log.log(f"  файл пропущен: {e}")
+    if "telegram" in sources:
+        records += _records_from_telegram(args, config, provider, api_key, log)
+    if "pdf" in sources:
+        records += _records_from_pdf(args, config, provider, api_key, log)
+
+    if not records:
+        raise LoaderError(f"из источников {sources} не извлечено ни одной вакансии")
+
+    Path(FETCHED_FILE).parent.mkdir(parents=True, exist_ok=True)
+    Path(FETCHED_FILE).write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+    log.log(f"Источники {sources}: всего записей {len(records)} -> {FETCHED_FILE}")
+    return FETCHED_FILE
 
 
 def _fail(output: str, log: RunLogger, msg: str) -> int:
@@ -133,9 +217,20 @@ def main(argv: list[str] | None = None) -> int:
     provider = resolve_provider(config, args.provider, args.dry_run)
     api_key = api_key_for(provider)
     if provider != "dryrun" and not api_key:
-        log.log(f"Ключ для '{provider}' не найден -> dry-run")
+        log.log(f"Ключ для '{provider}' не найден -> офлайн-режим (без LLM)")
         provider = "dryrun"
+    # Проверяем, что LLM реально отвечает (мёртвая квота/ключ -> заранее в офлайн).
+    if provider != "dryrun":
+        ok, why = llm_available(config, provider, api_key)
+        if not ok:
+            log.log(f"LLM '{provider}' недоступен ({why}) -> офлайн-режим (без LLM)")
+            provider, api_key = "dryrun", None
     log.log(f"Провайдер LLM: {provider}")
+    sources = parse_sources(args)
+    log.log(f"Источники вакансий: {', '.join(sources)}")
+    if provider == "dryrun" and ({"telegram", "pdf"} & set(sources)):
+        log.log("ВНИМАНИЕ: источник telegram/pdf без LLM даёт грубый результат "
+                "(не извлекаются компания/стек). Для нормального разбора нужен LLM-ключ.")
 
     # --- Каталог прогона: runs/<дата>__<резюме>__<провайдер>, если --output не задан ---
     if args.output:
@@ -164,9 +259,15 @@ def main(argv: list[str] | None = None) -> int:
         except ConfigError as e:
             return _fail(out_dir, log, str(e))
 
+    # --- Источники вакансий (file / telegram / pdf, можно несколько) ---
+    try:
+        input_path = gather_input(args, sources, config, provider, api_key, log)
+    except LoaderError as e:
+        return _fail(out_dir, log, str(e))
+
     # --- Загрузка + валидация вакансий ---
     try:
-        loaded = load_vacancies(args.input)
+        loaded = load_vacancies(input_path)
     except LoaderError as e:
         return _fail(out_dir, log, str(e))
     log.log(
@@ -195,14 +296,22 @@ def main(argv: list[str] | None = None) -> int:
     meta = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "provider": provider,
-        "source": "file",
+        "source": ", ".join(sources),
         "raw_count": loaded.raw_count,
         "valid_count": len(loaded.vacancies),
         "rejected_rows": len(loaded.rejected_rows),
         "duplicates": len(loaded.duplicates),
         "scored_count": len(scored),
     }
-    report_md = render_report(analyses, rejected_hard, borderline, meta)
+    profile_info = None
+    if profile:
+        profile_info = [
+            f"роль: {', '.join(profile.role) or '-'}",
+            f"уровень для поиска: {', '.join(target_levels(profile)) or '-'} (опыт: {profile.experience or '-'})",
+            f"навыки: {', '.join(profile.skills) or '-'}",
+            f"формат: {', '.join(profile.work_format) or '-'} | город: {profile.city or '-'}",
+        ]
+    report_md = render_report(analyses, rejected_hard, borderline, meta, profile_info)
     full_trace = {
         "meta": meta,
         "profile": profile.model_dump() if profile else None,

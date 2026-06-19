@@ -178,6 +178,139 @@ def extract_profile(resume_text: str, config: dict, provider: str, api_key: str 
 
 
 # --------------------------------------------------------------------------- #
+# Извлечение вакансий из сырого текста (Telegram-посты / PDF) — агентность
+# --------------------------------------------------------------------------- #
+class ExtractedVacancy(BaseModel):
+    """Одна вакансия, вытащенная LLM из неструктурированного текста."""
+
+    title: str = ""
+    company: str = ""
+    level: str = ""
+    role: str = ""
+    stack: list[str] = Field(default_factory=list)
+    work_format: str = ""
+    city: str = ""
+    description: str = ""
+    url: str = ""
+
+
+_VACANCIES_TOOL = [{
+    "type": "function",
+    "function": {
+        "name": "submit_vacancies",
+        "description": "Отправить список вакансий, найденных в тексте. Не-вакансии игнорируй.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "vacancies": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "company": {"type": "string"},
+                            "level": {"type": "string", "description": "intern/junior/middle/senior если ясно"},
+                            "role": {"type": "string"},
+                            "stack": {"type": "array", "items": {"type": "string"}},
+                            "work_format": {"type": "string", "description": "remote/hybrid/office"},
+                            "city": {"type": "string"},
+                            "description": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                        "required": ["title"],
+                    },
+                }
+            },
+            "required": ["vacancies"],
+        },
+    },
+}]
+
+
+def _records_from_extracted(items: list[ExtractedVacancy], source: str) -> list[dict]:
+    """ExtractedVacancy -> записи в схеме vacancies.json (с id и дефолтами)."""
+    out = []
+    for i, v in enumerate(items):
+        if not v.title.strip():
+            continue
+        out.append({
+            "id": f"{source}_{i}",
+            "title": v.title.strip(),
+            "company": v.company.strip() or "unknown",
+            "level": v.level.strip().lower(),
+            "role": v.role.strip().lower() or v.title.strip().lower(),
+            "stack": [s for s in v.stack if s and s.strip()],
+            "work_format": v.work_format.strip(),
+            "city": v.city.strip(),
+            "published": "",
+            "description": v.description.strip(),
+            "url": v.url.strip(),
+        })
+    return out
+
+
+def _rule_based_vacancies(posts: list[str], source: str) -> list[dict]:
+    """Грубое извлечение без LLM: каждый блок текста -> вакансия (title=1я строка)."""
+    out = []
+    for i, post in enumerate(posts):
+        post = post.strip()
+        if len(post) < 30:  # слишком короткое — вряд ли вакансия
+            continue
+        lines = [ln.strip() for ln in post.splitlines() if ln.strip()]
+        title = lines[0][:120] if lines else f"Вакансия {i}"
+        out.append({
+            "id": f"{source}_{i}",
+            "title": title,
+            "company": "unknown",
+            "level": "",
+            "role": title.lower(),
+            "stack": [],
+            "work_format": "",
+            "city": "",
+            "published": "",
+            "description": post[:2000],
+            "url": "",
+        })
+    return out
+
+
+def extract_vacancies_from_text(
+    posts: list[str], source: str, config: dict, provider: str, api_key: str | None
+) -> list[dict]:
+    """Из списка текстовых блоков (посты/секции) собрать вакансии.
+
+    LLM: один вызов на весь набор (экономия квоты). Без ключа — rule-based fallback.
+    """
+    if not posts:
+        return []
+    if provider == "dryrun" or provider not in PROVIDERS or not api_key:
+        return _rule_based_vacancies(posts, source)
+
+    blob = "\n\n---\n\n".join(p.strip() for p in posts if p.strip())
+    blob = blob[: config.get("max_extract_chars", 12000)]
+    system = (
+        "Ты извлекаешь вакансии из текста (посты Telegram или текст PDF). "
+        "Тексты разделены '---'. Не каждый блок — вакансия (бывает реклама, новости): такие пропускай. "
+        "Для каждой вакансии заполни поля, которых хватает; неизвестное оставь пустым. "
+        "Вызови submit_vacancies один раз со списком."
+    )
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": blob},
+    ]
+    try:
+        data = _llm_call(messages, _VACANCIES_TOOL, config, provider, api_key)
+        calls = data["choices"][0]["message"].get("tool_calls") or []
+        if calls:
+            args = json.loads(calls[0]["function"]["arguments"] or "{}")
+            items = [ExtractedVacancy(**v) for v in args.get("vacancies", [])]
+            return _records_from_extracted(items, source)
+    except (LLMError, ValidationError, KeyError, json.JSONDecodeError):
+        pass
+    return _rule_based_vacancies(posts, source)
+
+
+# --------------------------------------------------------------------------- #
 # Каскад обработки длинного описания (обычный код, 2 уровня)
 # --------------------------------------------------------------------------- #
 _REQ_MARKERS = (
@@ -450,6 +583,20 @@ def _run_rule_based(scored: Scored, crit: Criteria) -> VacancyAnalysis:
         override_reason="",
         next_step="Откликнуться с сопроводительным" if priority != "low" else "Рассмотреть во вторую очередь",
     )
+
+
+def llm_available(config: dict, provider: str, api_key: str | None) -> tuple[bool, str]:
+    """Быстрая проверка, что LLM реально отвечает (ловит мёртвую квоту/ключ заранее).
+
+    Возвращает (доступен, причина_недоступности). Один минимальный запрос.
+    """
+    if provider == "dryrun" or provider not in PROVIDERS or not api_key:
+        return False, "провайдер dryrun или нет ключа"
+    try:
+        _llm_call([{"role": "user", "content": "ping"}], None, config, provider, api_key)
+        return True, ""
+    except (LLMError, KeyError) as e:
+        return False, str(e)
 
 
 # --------------------------------------------------------------------------- #

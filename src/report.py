@@ -20,6 +20,7 @@ def render_report(
     rejected_hard: list[RejectedHard],
     borderline: list[Scored],
     meta: dict[str, Any],
+    profile_info: list[str] | None = None,
 ) -> str:
     """Собрать report.md. analyses = [{scored, analysis, mode}, ...] (топ-N)."""
     lines: list[str] = []
@@ -31,7 +32,14 @@ def render_report(
         f"- Загружено записей: {meta['raw_count']} | валидных: {meta['valid_count']} | "
         f"отброшено битых: {meta['rejected_rows']} | дублей: {meta['duplicates']}"
     )
-    lines.append(f"- Прошли hard-фильтр: {meta['scored_count']} | отсеяно по уровню: {len(rejected_hard)}\n")
+    lines.append(f"- Прошли hard-фильтр: {meta['scored_count']} | отсеяно по уровню: {len(rejected_hard)}")
+
+    # ---- Профиль кандидата (ключевые пункты резюме) ----
+    if profile_info:
+        lines.append("")
+        lines.append("**Профиль кандидата (из резюме):**")
+        lines.extend(f"- {x}" for x in profile_info)
+    lines.append("")
 
     # ---- Топ ----
     lines.append(f"## Топ-{len(analyses)} рекомендаций\n")

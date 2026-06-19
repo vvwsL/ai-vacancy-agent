@@ -1,10 +1,16 @@
 # Отчёт агента по AI/ML вакансиям
 
-- Дата прогона: 2026-06-19 22:14:53
+- Дата прогона: 2026-06-20 01:01:19
 - Источник вакансий: **file**
 - Режим LLM: **dryrun**
 - Загружено записей: 14 | валидных: 11 | отброшено битых: 2 | дублей: 1
 - Прошли hard-фильтр: 10 | отсеяно по уровню: 1
+
+**Профиль кандидата (из резюме):**
+- роль: ml engineer, ai engineer, nlp engineer
+- уровень для поиска: intern, junior (опыт: -)
+- навыки: python, pytorch, machine learning, deep learning, nlp, llm, rag, transformers, sql, numpy, pandas, docker, git
+- формат: remote | город: -
 
 ## Топ-5 рекомендаций
 
