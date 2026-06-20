@@ -1,25 +1,32 @@
-12:35:16 | === Запуск агента ===
-12:35:16 | Провайдер LLM: dryrun
-12:35:16 | Источники вакансий: file
-12:35:16 | Каталог прогона: output
-12:35:16 | Резюме прочитано: data/resume.txt (593 симв.)
-12:35:16 | Агент понял профиль из резюме:
-12:35:16 |   роль:    ml engineer, ai engineer, nlp engineer
-12:35:16 |   опыт:    не указан
-12:35:16 |   уровень вакансий для поиска: intern, junior
-12:35:16 |   навыки:  python, pytorch, machine learning, deep learning, nlp, llm, rag, transformers, sql, numpy, pandas, docker, git
-12:35:16 |   формат:  remote
-12:35:16 |   город:   -
-12:35:16 | Загружено: 14 | валидных: 11 | битых: 2 | дублей: 1
-12:35:16 | После hard-фильтра: 10 (отсеяно по уровню: 1)
-12:35:16 | Разбор v006 (Junior ML Engineer) score=72.3 ...
-12:35:16 |   режим: rule_based; приоритет: high
-12:35:16 | Разбор v001 (ML Engineer Intern) score=71.6 ...
-12:35:16 |   режим: rule_based; приоритет: high
-12:35:16 | Разбор v003 (NLP Engineer (Junior)) score=70.5 ...
-12:35:16 |   режим: rule_based; приоритет: high
-12:35:16 | Разбор v002 (Junior AI Engineer) score=67.5 ...
-12:35:16 |   режим: rule_based; приоритет: medium
-12:35:16 | Разбор v007 (AI Research Intern) score=58.2 ...
-12:35:16 |   режим: rule_based; приоритет: medium
-12:35:16 | Готово. Результат: output/report.md (+ trace.json, run.log)
+15:53:35 | === Запуск агента ===
+15:53:53 | Провайдер LLM: openrouter
+15:53:53 | Источники вакансий: telegram
+15:53:53 | Каталог прогона: output
+15:53:53 | Резюме прочитано: data/моё_резюме.pdf (3076 симв.)
+15:53:53 | Профиль взят из кэша (резюме не менялось) — LLM не вызывается
+15:53:53 | Агент понял профиль из резюме:
+15:53:53 |   роль:    AI Engineer, LLM Engineer, ML Engineer, AI Specialist
+15:53:53 |   опыт:    1–3 года
+15:53:53 |   уровень вакансий для поиска: junior, middle
+15:53:53 |   навыки:  Python, SQL, Git, Docker, FastAPI, REST API, Jupyter Notebook, VS Code, PyCharm, Systemd, HuggingFace, OpenAI, RAG, AI-агенты, LangChain, Embeddings, Vector search, NLP, Prompt engineering, Чат-боты, ML-пайплайны, MLOps, PostgreSQL, Qdrant, FAISS, Pandas, NumPy, Scikit-Learn, LightGBM, ETL, Автоматизация отчётности, Визуализация данных, Парсинг, Анализ данных
+15:53:53 |   формат:  -
+15:53:53 |   город:   Москва
+15:54:13 | Telegram @devs_it: постов 19 -> вакансий 7
+15:54:33 | Telegram @ai_rabota: постов 20 -> вакансий 6
+15:54:49 | Telegram @jobbyrussia: постов 15 -> вакансий 9
+15:55:14 | Telegram @vibe_coding_jobs: постов 20 -> вакансий 19
+15:55:14 | Источники ['telegram']: всего записей 41 -> data/fetched_vacancies.json
+15:55:14 | Загружено: 41 | валидных: 41 | битых: 0 | дублей: 0
+15:55:14 | После hard-фильтра: 30 (отсеяно по уровню: 11)
+15:55:14 | Разбор tg-ai_rabota_2 (ML Engineer) score=53.8 ...
+15:56:08 |   режим: agent; приоритет: medium
+15:56:08 | Разбор tg-ai_rabota_0 (ML Engineer) score=52.1 ...
+15:57:00 |   режим: agent; приоритет: low
+15:57:00 | Разбор tg-devs_it_1 (DevOps-инженер в стрим АиВ) score=28.5 ...
+15:57:56 |   режим: agent; приоритет: low
+15:57:56 | Разбор tg-ai_rabota_1 (AI Creator) score=27.1 ...
+15:58:37 |   режим: agent; приоритет: low
+15:58:37 | Разбор tg-jobbyrussia_6 (Менеджер по продвижению на маркетплейсах) score=23.8 ...
+15:59:30 |   режим: agent; приоритет: low
+15:59:30 | Failover провайдера сработал: openrouter -> mistral
+15:59:30 | Готово. Результат: output/report.md (+ trace.json, run.log)

@@ -1,219 +1,686 @@
 {
   "meta": {
-    "timestamp": "2026-06-20 12:35:16",
-    "provider": "dryrun",
-    "source": "file",
-    "raw_count": 14,
-    "valid_count": 11,
-    "rejected_rows": 2,
-    "duplicates": 1,
-    "scored_count": 10,
+    "timestamp": "2026-06-20 15:59:30",
+    "provider": "openrouter",
+    "source": "telegram",
+    "raw_count": 41,
+    "valid_count": 41,
+    "rejected_rows": 0,
+    "duplicates": 0,
+    "scored_count": 30,
     "min_score": 45,
-    "fallbacks": []
+    "fallbacks": [
+      "openrouter -> mistral"
+    ]
   },
   "profile": {
     "role": [
-      "ml engineer",
-      "ai engineer",
-      "nlp engineer"
+      "AI Engineer",
+      "LLM Engineer",
+      "ML Engineer",
+      "AI Specialist"
     ],
     "skills": [
-      "python",
-      "pytorch",
-      "machine learning",
-      "deep learning",
-      "nlp",
-      "llm",
-      "rag",
-      "transformers",
-      "sql",
-      "numpy",
-      "pandas",
-      "docker",
-      "git"
+      "Python",
+      "SQL",
+      "Git",
+      "Docker",
+      "FastAPI",
+      "REST API",
+      "Jupyter Notebook",
+      "VS Code",
+      "PyCharm",
+      "Systemd",
+      "HuggingFace",
+      "OpenAI",
+      "RAG",
+      "AI-агенты",
+      "LangChain",
+      "Embeddings",
+      "Vector search",
+      "NLP",
+      "Prompt engineering",
+      "Чат-боты",
+      "ML-пайплайны",
+      "MLOps",
+      "PostgreSQL",
+      "Qdrant",
+      "FAISS",
+      "Pandas",
+      "NumPy",
+      "Scikit-Learn",
+      "LightGBM",
+      "ETL",
+      "Автоматизация отчётности",
+      "Визуализация данных",
+      "Парсинг",
+      "Анализ данных"
     ],
     "level": [
-      "intern",
-      "junior"
+      "senior"
     ],
-    "work_format": [
-      "remote"
-    ],
-    "city": "",
-    "experience": ""
+    "work_format": [],
+    "city": "Москва",
+    "experience": "between1And3"
   },
-  "rejected_rows": [
-    {
-      "index": 10,
-      "id": "v011",
-      "reason": "нет ключевых полей: title"
-    },
-    {
-      "index": 12,
-      "reason": "запись не является объектом",
-      "raw": "None"
-    }
-  ],
-  "duplicates": [
-    {
-      "id": "v010",
-      "duplicate_of": "v002",
-      "key": "junior ai engineer|neurostack"
-    }
-  ],
+  "rejected_rows": [],
+  "duplicates": [],
   "hard_rejected": [
     {
-      "id": "v004",
+      "id": "tg-devs_it_0",
+      "reason": "уровень 'senior' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-devs_it_2",
+      "reason": "уровень 'lead' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-devs_it_4",
+      "reason": "уровень 'lead' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-devs_it_5",
+      "reason": "уровень 'lead' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-ai_rabota_3",
+      "reason": "уровень 'lead' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-ai_rabota_4",
+      "reason": "уровень 'senior' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-ai_rabota_5",
+      "reason": "уровень 'senior' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-vibe_coding_jobs_2",
+      "reason": "уровень 'senior' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-vibe_coding_jobs_9",
+      "reason": "уровень 'senior' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-vibe_coding_jobs_14",
+      "reason": "уровень 'senior' не подходит (нужен стажёр/junior)"
+    },
+    {
+      "id": "tg-vibe_coding_jobs_17",
       "reason": "уровень 'senior' не подходит (нужен стажёр/junior)"
     }
   ],
   "ranking": [
     {
-      "id": "v006",
-      "score": 72.3,
+      "id": "tg-ai_rabota_2",
+      "score": 53.8,
       "components": {
-        "skill_overlap": 0.308,
+        "skill_overlap": 0.206,
         "role_match": 1.0,
         "level_match": 1.0,
-        "freshness": 1.0,
-        "work_format": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-ai_rabota_0",
+      "score": 52.1,
+      "components": {
+        "skill_overlap": 0.118,
+        "role_match": 1.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
         "city_match": 1.0
       }
     },
     {
-      "id": "v001",
-      "score": 71.6,
+      "id": "tg-devs_it_1",
+      "score": 28.5,
       "components": {
-        "skill_overlap": 0.308,
-        "role_match": 1.0,
-        "level_match": 1.0,
-        "freshness": 0.933,
-        "work_format": 1.0,
-        "city_match": 1.0
-      }
-    },
-    {
-      "id": "v003",
-      "score": 70.5,
-      "components": {
-        "skill_overlap": 0.308,
-        "role_match": 1.0,
-        "level_match": 1.0,
-        "freshness": 0.822,
-        "work_format": 1.0,
-        "city_match": 1.0
-      }
-    },
-    {
-      "id": "v002",
-      "score": 67.5,
-      "components": {
-        "skill_overlap": 0.385,
-        "role_match": 1.0,
-        "level_match": 1.0,
-        "freshness": 0.978,
+        "skill_overlap": 0.118,
+        "role_match": 0.5,
+        "level_match": 0.4,
+        "freshness": 0.3,
         "work_format": 0.2,
         "city_match": 0.3
       }
     },
     {
-      "id": "v007",
-      "score": 58.2,
+      "id": "tg-ai_rabota_1",
+      "score": 27.1,
       "components": {
-        "skill_overlap": 0.308,
-        "role_match": 1.0,
-        "level_match": 1.0,
-        "freshness": 0.356,
+        "skill_overlap": 0.029,
+        "role_match": 0.5,
+        "level_match": 0.4,
+        "freshness": 0.3,
         "work_format": 0.2,
-        "city_match": 0.3
+        "city_match": 1.0
       }
     },
     {
-      "id": "v012",
-      "score": 55.2,
+      "id": "tg-jobbyrussia_6",
+      "score": 23.8,
       "components": {
-        "skill_overlap": 0.231,
-        "role_match": 1.0,
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.4,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-jobbyrussia_7",
+      "score": 23.8,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.4,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_18",
+      "score": 23.7,
+      "components": {
+        "skill_overlap": 0.029,
+        "role_match": 0.5,
         "level_match": 0.2,
-        "freshness": 0.8,
-        "work_format": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.4,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_1",
+      "score": 22.9,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.5,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
         "city_match": 1.0
       }
     },
     {
-      "id": "v009",
-      "score": 46.2,
+      "id": "tg-vibe_coding_jobs_11",
+      "score": 22.9,
       "components": {
-        "skill_overlap": 0.308,
-        "role_match": 0.0,
-        "level_match": 1.0,
-        "freshness": 0.889,
-        "work_format": 1.0,
+        "skill_overlap": 0.0,
+        "role_match": 0.5,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
         "city_match": 1.0
       }
     },
     {
-      "id": "v014",
-      "score": 42.2,
+      "id": "tg-vibe_coding_jobs_15",
+      "score": 22.9,
       "components": {
-        "skill_overlap": 0.385,
+        "skill_overlap": 0.0,
+        "role_match": 0.5,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_8",
+      "score": 22.9,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.5,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_13",
+      "score": 22.5,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.5,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.4,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-jobbyrussia_8",
+      "score": 22.4,
+      "components": {
+        "skill_overlap": 0.0,
         "role_match": 0.0,
         "level_match": 1.0,
-        "freshness": 0.956,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_12",
+      "score": 22.4,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_10",
+      "score": 22.0,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.4,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-jobbyrussia_0",
+      "score": 20.6,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-jobbyrussia_1",
+      "score": 20.6,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-jobbyrussia_2",
+      "score": 20.6,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-jobbyrussia_3",
+      "score": 20.6,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-jobbyrussia_4",
+      "score": 20.6,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-jobbyrussia_5",
+      "score": 20.6,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 1.0,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-devs_it_3",
+      "score": 12.4,
+      "components": {
+        "skill_overlap": 0.059,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.4,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_4",
+      "score": 11.6,
+      "components": {
+        "skill_overlap": 0.029,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_5",
+      "score": 11.6,
+      "components": {
+        "skill_overlap": 0.029,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_6",
+      "score": 11.6,
+      "components": {
+        "skill_overlap": 0.029,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_0",
+      "score": 10.4,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_7",
+      "score": 10.4,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.2,
+        "city_match": 1.0
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_16",
+      "score": 10.0,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.4,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-vibe_coding_jobs_3",
+      "score": 10.0,
+      "components": {
+        "skill_overlap": 0.0,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
+        "work_format": 0.4,
+        "city_match": 0.4
+      }
+    },
+    {
+      "id": "tg-devs_it_6",
+      "score": 9.5,
+      "components": {
+        "skill_overlap": 0.029,
+        "role_match": 0.0,
+        "level_match": 0.2,
+        "freshness": 0.3,
         "work_format": 0.2,
         "city_match": 0.3
-      }
-    },
-    {
-      "id": "v005",
-      "score": 40.7,
-      "components": {
-        "skill_overlap": 0.154,
-        "role_match": 0.0,
-        "level_match": 1.0,
-        "freshness": 0.956,
-        "work_format": 1.0,
-        "city_match": 1.0
-      }
-    },
-    {
-      "id": "v008",
-      "score": 40.3,
-      "components": {
-        "skill_overlap": 0.154,
-        "role_match": 0.0,
-        "level_match": 1.0,
-        "freshness": 0.911,
-        "work_format": 1.0,
-        "city_match": 1.0
       }
     }
   ],
   "analyses": [
     {
-      "id": "v006",
-      "mode": "rule_based",
-      "elapsed_s": 0.0
+      "id": "tg-ai_rabota_2",
+      "desc_handling": {
+        "method": "as_is",
+        "orig_len": 177,
+        "final_len": 177
+      },
+      "tool_calls": [
+        {
+          "step": 0,
+          "tool": "get_candidate_criteria",
+          "args": {}
+        },
+        {
+          "step": 0,
+          "tool": "get_full_description",
+          "args": {}
+        },
+        {
+          "step": 1,
+          "tool": "compute_skill_overlap",
+          "args": {
+            "skills": [
+              "Python",
+              "AI-агенты",
+              "LLM-фреймворки",
+              "backend-сервисы",
+              "Async/threading",
+              "HTTP/1.1",
+              "HTTP/2",
+              "WebSocket",
+              "REST/JSON",
+              "Kafka",
+              "SQL",
+              "LangChain",
+              "LangGraph",
+              "RAG",
+              "векторные хранилища данных",
+              "Git",
+              "Docker",
+              "контейнеризация"
+            ]
+          }
+        },
+        {
+          "step": 2,
+          "tool": "submit_analysis"
+        }
+      ],
+      "mode": "agent",
+      "provider": "openrouter",
+      "elapsed_s": 54.016
     },
     {
-      "id": "v001",
-      "mode": "rule_based",
-      "elapsed_s": 0.0
+      "id": "tg-ai_rabota_0",
+      "desc_handling": {
+        "method": "as_is",
+        "orig_len": 249,
+        "final_len": 249
+      },
+      "tool_calls": [
+        {
+          "step": 0,
+          "tool": "get_candidate_criteria",
+          "args": {}
+        },
+        {
+          "step": 0,
+          "tool": "get_full_description",
+          "args": {}
+        },
+        {
+          "step": 1,
+          "tool": "compute_skill_overlap",
+          "args": {
+            "skills": [
+              "Python",
+              "LLM",
+              "API",
+              "backend",
+              "prompt engineering",
+              "RAG",
+              "векторные БД",
+              "Docker",
+              "Kubernetes",
+              "cloud",
+              "инференс",
+              "квантизация",
+              "мультимодальные модели"
+            ]
+          }
+        },
+        {
+          "step": 2,
+          "tool": "submit_analysis"
+        }
+      ],
+      "mode": "agent",
+      "provider": "openrouter",
+      "elapsed_s": 51.445
     },
     {
-      "id": "v003",
-      "mode": "rule_based",
-      "elapsed_s": 0.0
+      "id": "tg-devs_it_1",
+      "desc_handling": {
+        "method": "as_is",
+        "orig_len": 139,
+        "final_len": 139
+      },
+      "tool_calls": [
+        {
+          "step": 0,
+          "tool": "get_full_description",
+          "args": {}
+        },
+        {
+          "step": 0,
+          "tool": "get_candidate_criteria",
+          "args": {}
+        },
+        {
+          "step": 1,
+          "tool": "compute_skill_overlap",
+          "args": {
+            "skills": [
+              "Jenkins",
+              "Ansible",
+              "Linux",
+              "Kubernetes",
+              "Docker",
+              "Postgresql",
+              "KAFKA",
+              "Git",
+              "Groovy",
+              "bash",
+              "python"
+            ]
+          }
+        },
+        {
+          "step": 2,
+          "tool": "submit_analysis"
+        }
+      ],
+      "mode": "agent",
+      "provider": "openrouter",
+      "elapsed_s": 56.658
     },
     {
-      "id": "v002",
-      "mode": "rule_based",
-      "elapsed_s": 0.0
+      "id": "tg-ai_rabota_1",
+      "desc_handling": {
+        "method": "as_is",
+        "orig_len": 192,
+        "final_len": 192
+      },
+      "tool_calls": [
+        {
+          "step": 0,
+          "tool": "get_candidate_criteria",
+          "args": {}
+        },
+        {
+          "step": 0,
+          "tool": "get_full_description",
+          "args": {}
+        },
+        {
+          "step": 1,
+          "tool": "submit_analysis"
+        }
+      ],
+      "mode": "agent",
+      "provider": "openrouter",
+      "elapsed_s": 40.308
     },
     {
-      "id": "v007",
-      "mode": "rule_based",
-      "elapsed_s": 0.0
+      "id": "tg-jobbyrussia_6",
+      "desc_handling": {
+        "method": "as_is",
+        "orig_len": 0,
+        "final_len": 0
+      },
+      "tool_calls": [
+        {
+          "step": 0,
+          "tool": "get_full_description",
+          "args": {}
+        },
+        {
+          "step": 0,
+          "tool": "get_candidate_criteria",
+          "args": {}
+        },
+        {
+          "step": 1,
+          "tool": "compute_skill_overlap",
+          "args": {
+            "skills": []
+          }
+        },
+        {
+          "step": 2,
+          "tool": "submit_analysis"
+        }
+      ],
+      "mode": "agent",
+      "provider": "openrouter",
+      "elapsed_s": 53.064
     }
   ]
 }
