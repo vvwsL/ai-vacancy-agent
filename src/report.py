@@ -61,9 +61,12 @@ def render_report(
         prio = _PRIORITY_RU.get(an.priority, an.priority)
         verdict = "  ❌ слабое совпадение — скорее не подходит" if sc.score < min_score else ""
         lines.append(f"### {i}. {vac.title} — {vac.company}{verdict}")
+        # Расхождение ранга: метрика vs решение агента.
+        sr = item.get("score_rank", i)
+        rank_note = f" | по score был #{sr} → агент поставил #{i}" if sr != i else ""
         lines.append(
             f"**Score: {sc.score}/100** | приоритет отклика: **{prio}** | "
-            f"режим разбора: `{item['mode']}`  "
+            f"режим разбора: `{item['mode']}`{rank_note}  "
         )
         lines.append(
             f"Уровень: {vac.level} · роль: {vac.role} · формат: {vac.work_format} · "

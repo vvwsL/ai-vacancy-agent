@@ -396,12 +396,18 @@ def main(argv: list[str] | None = None) -> int:
     borderline = scored[top_n : top_n + config.get("explain_rejected_n", 3)]
 
     analyses, traces = [], []
-    for sc in top:
+    for rank, sc in enumerate(top, 1):
         log.log(f"Разбор {sc.vacancy.id} ({sc.vacancy.title}) score={sc.score} ...")
         res = analyze(sc, criteria, config, provider, api_key)
         log.log(f"  режим: {res['mode']}; приоритет: {res['analysis'].priority}")
-        analyses.append({"scored": sc, "analysis": res["analysis"], "mode": res["mode"]})
+        # score_rank — место по числовой метрике (до переупорядочивания агентом).
+        analyses.append({"scored": sc, "analysis": res["analysis"], "mode": res["mode"], "score_rank": rank})
         traces.append(res["trace"])
+
+    # Гибрид: метрика дала шорт-лист, агент переупорядочивает его по своему вердикту
+    # (приоритет отклика), при равенстве — по score. Расхождение покажем в отчёте.
+    _PRIO_ORDER = {"high": 0, "medium": 1, "low": 2}
+    analyses.sort(key=lambda a: (_PRIO_ORDER.get(a["analysis"].priority, 1), -a["scored"].score))
 
     if llm_mod.FALLBACKS:
         uniq = sorted(set(llm_mod.FALLBACKS))
