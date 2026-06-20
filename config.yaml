@@ -30,8 +30,10 @@ weights:
 llm:
   provider: auto         # auto | groq | openrouter | cerebras | dryrun
                          # auto: первый провайдер, для которого есть ключ в .env; иначе dryrun
-  # Модели можно переопределить (иначе берётся дефолт провайдера из src/llm.py PROVIDERS):
+  # Модели можно переопределить (иначе берётся дефолт провайдера из src/llm.py PROVIDERS).
+  # Для OpenRouter модель также выбирается в меню или флагом --model-openrouter.
   model_groq: llama-3.3-70b-versatile
+  # model_openrouter: deepseek/deepseek-chat-v3-0324:free
   temperature: 0.0       # детерминизм, насколько возможно для воспроизводимости
   max_agent_steps: 3     # лимит итераций tool-loop — защита от зацикливания (и экономия вызовов)
   request_timeout: 40    # сек на один HTTP-запрос к модели

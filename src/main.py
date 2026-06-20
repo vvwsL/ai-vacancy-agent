@@ -219,6 +219,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--yes", action="store_true", help="не спрашивать подтверждение (для тестов/CI)")
     p.add_argument("--provider",
                    choices=["auto", "gemini", "groq", "openrouter", "cerebras", "mistral", "cohere", "dryrun"])
+    p.add_argument("--model-openrouter", dest="model_openrouter", default="",
+                   help="модель OpenRouter (напр. deepseek/deepseek-chat-v3-0324:free)")
     return p
 
 
@@ -310,6 +312,9 @@ def main(argv: list[str] | None = None) -> int:
         config = load_config(args.config)
     except ConfigError as e:
         return _fail(args.output or "output", log, str(e))
+
+    if args.model_openrouter:  # переопределить модель OpenRouter на этот прогон
+        config.setdefault("llm", {})["model_openrouter"] = args.model_openrouter
 
     resume_path = args.resume or config.get("resume_path", "")
 

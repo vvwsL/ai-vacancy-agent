@@ -40,6 +40,7 @@ def _default_state() -> dict:
         "tg_channels": [],
         "tg_limit": 20,
         "pdf_vacancies": "",
+        "openrouter_model": "",
     }
 
 
@@ -106,6 +107,30 @@ def _available_providers() -> list[str]:
     return ["auto"] + with_keys + ["dryrun"]
 
 
+# Курируемые бесплатные модели OpenRouter (label, value). value="" = дефолт провайдера.
+_OPENROUTER_MODELS = [
+    ("по умолчанию (llama-3.3-70b-instruct)", ""),
+    ("deepseek-chat-v3-0324:free", "deepseek/deepseek-chat-v3-0324:free"),
+    ("gemini-2.0-flash-exp:free", "google/gemini-2.0-flash-exp:free"),
+    ("qwen-2.5-72b-instruct:free", "qwen/qwen-2.5-72b-instruct:free"),
+    ("llama-3.3-70b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"),
+    ("[ввести вручную]", "__manual__"),
+]
+
+
+def _choose_openrouter_model(state: dict) -> None:
+    labels = [f"{'● ' if v == state.get('openrouter_model', '') else '  '}{lab}" for lab, v in _OPENROUTER_MODELS]
+    idx = tui.select([TITLE, "Меню › Модель OpenRouter"], labels)
+    if idx is None:
+        return
+    value = _OPENROUTER_MODELS[idx][1]
+    if value == "__manual__":
+        tui.clear()
+        state["openrouter_model"] = input("Модель OpenRouter (id, напр. mistralai/mistral-7b-instruct:free): ").strip()
+    else:
+        state["openrouter_model"] = value
+
+
 def _choose_provider(state: dict) -> None:
     providers = _available_providers()
     hint = "только провайдеры с ключом в .env" if len(providers) > 2 else "ключей нет — доступен только офлайн"
@@ -113,6 +138,8 @@ def _choose_provider(state: dict) -> None:
     idx = tui.select([TITLE, "Меню › Провайдер LLM", hint], providers, start=start)
     if idx is not None:
         state["provider"] = providers[idx]
+        if state["provider"] == "openrouter":
+            _choose_openrouter_model(state)
 
 
 def _enter_channels(state: dict) -> None:
@@ -285,6 +312,8 @@ def _build_argv(state: dict) -> list[str]:
         argv += ["--tg-channels", ",".join(state["tg_channels"]), "--tg-limit", str(state["tg_limit"])]
     if "pdf" in state["sources"]:
         argv += ["--pdf-vacancies", state["pdf_vacancies"]]
+    if state.get("openrouter_model"):
+        argv += ["--model-openrouter", state["openrouter_model"]]
     if state["dry_run"]:
         argv.append("--dry-run")
     return argv
@@ -296,10 +325,13 @@ def run_menu() -> int:
     state = load_state()
     cursor = 0  # запоминаем позицию, чтобы не сбрасывалась после действия
     while True:
+        prov_label = state["provider"]
+        if state["provider"] == "openrouter" and state.get("openrouter_model"):
+            prov_label += f" · {state['openrouter_model']}"
         labels = [
             f"Резюме:            {state['resume']}",
             f"Источники:         {_source_label(state)}",
-            f"Провайдер LLM:     {state['provider']}",
+            f"Провайдер LLM:     {prov_label}",
             f"Топ-N вакансий:    {state['top_n']}",
             f"Режим разбора:     {'без LLM (dry-run)' if state['dry_run'] else 'с LLM'}",
             "▶ Запустить",
