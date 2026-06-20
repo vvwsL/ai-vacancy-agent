@@ -62,3 +62,17 @@ def test_score_is_deterministic():
 def test_score_in_range():
     scored, _ = filter_and_score([_vac()], CRIT, CONFIG)
     assert 0 <= scored[0].score <= 100
+
+
+def test_criteria_from_profile_lowercased():
+    """Критерии из резюме приводятся к lowercase — 'ML Engineer' матчит 'ml engineer'."""
+    from src.main import _criteria_from_profile
+    from src.llm import CandidateProfile
+    prof = CandidateProfile(role=["ML Engineer"], skills=["Python"],
+                            level=["Junior"], experience="between1And3")
+    crit = _criteria_from_profile(prof)
+    assert crit.role == ["ml engineer"]
+    assert crit.skills == ["python"]
+    # роль вакансии 'ml engineer' теперь совпадает (role_match не нулевой)
+    scored, _ = filter_and_score([_vac(role="ml engineer")], crit, CONFIG)
+    assert scored[0].components["role_match"] == 1.0

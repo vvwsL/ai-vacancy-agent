@@ -128,13 +128,18 @@ def target_levels(p: CandidateProfile) -> list[str]:
 
 
 def _criteria_from_profile(p: CandidateProfile) -> Criteria:
-    """Профиль из резюме -> критерии для scoring (обычный код)."""
+    """Профиль из резюме -> критерии для scoring (обычный код).
+
+    Всё в нижний регистр — scoring сравнивает с lowercase-полями вакансий
+    (так же, как критерии из criteria.md). Иначе 'ML Engineer' != 'ml engineer'.
+    """
+    low = lambda xs: [str(x).lower() for x in xs]
     return Criteria(
-        role=p.role or ["ml engineer"],
-        skills=p.skills or ["python"],
-        level=target_levels(p),
-        work_format=p.work_format,
-        city=[p.city] if p.city else [],
+        role=low(p.role) or ["ml engineer"],
+        skills=low(p.skills) or ["python"],
+        level=low(target_levels(p)),
+        work_format=low(p.work_format),
+        city=[p.city.lower()] if p.city else [],
     )
 
 
