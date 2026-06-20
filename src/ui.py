@@ -31,6 +31,9 @@ except Exception:  # questionary не установлен — работаем 
             self.checked = checked
 
 POINTER = "►"
+# Подсказки по управлению — показываются прямо в строке вопроса.
+HINT_SELECT = "(↑/↓ — выбрать · Enter — ок · Ctrl+C — выход)"
+HINT_MULTI = "(↑/↓ · Пробел — отметить · Enter — подтвердить · Ctrl+C — выход)"
 
 
 def _interactive() -> bool:
@@ -62,6 +65,7 @@ def select(title: str, choices: list, default=None):
         clear()  # чистое окно: убираем «хвост» предыдущих промптов
         ans = questionary.select(
             title, choices=items, default=default, pointer=POINTER, style=STYLE,
+            instruction=HINT_SELECT,
         ).ask()
         return ans  # value выбранного Choice или None (Ctrl+C/отмена)
     # Fallback без TTY/questionary.
@@ -83,7 +87,7 @@ def multiselect(title: str, choices: list, default=None, min_select: int = 1) ->
         clear()
         while True:
             q_choices = [Choice(c.title, c.value, checked=c.value in default) for c in items]
-            ans = questionary.checkbox(title, choices=q_choices, style=STYLE).ask()
+            ans = questionary.checkbox(title, choices=q_choices, style=STYLE, instruction=HINT_MULTI).ask()
             if ans is None:                      # отмена -> оставляем как было
                 return default or [items[0].value]
             if len(ans) >= min_select:
