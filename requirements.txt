@@ -5,6 +5,9 @@ PyYAML>=6.0
 pydantic>=2.0
 pytest>=7.0
 
+# Интерактивное меню (TUI).
+questionary>=2.0
+
 # Парсинг резюме (опционально: нужны только для pdf/docx).
 pypdf>=4.0
 python-docx>=1.1

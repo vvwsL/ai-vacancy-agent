@@ -1,5 +1,6 @@
 .env
 runs/
+.menu_state.json
 user_settings.json
 data/fetched_vacancies.json
 data/.profile_cache.json

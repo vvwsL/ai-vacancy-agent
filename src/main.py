@@ -34,9 +34,8 @@ from .loader import LoaderError, load_vacancies
 from .report import RunLogger, render_report, write_artifacts
 from .resume import ResumeError, extract_text
 from .scoring import filter_and_score
-from . import tui
-
-TITLE_REVIEW = "AI-агент · профиль кандидата"
+from . import ui
+from .ui import Choice
 
 FETCHED_FILE = "data/fetched_vacancies.json"  # сюда пишем вакансии из telegram/pdf (не трогаем мок)
 PROFILE_CACHE = "data/.profile_cache.json"    # кэш LLM-профиля по хэшу резюме (экономия токенов)
@@ -190,9 +189,10 @@ def _review_profile(profile: CandidateProfile, log: RunLogger) -> CandidateProfi
             profile.city = input("Город: ").strip()
         elif ans == "5":
             codes = ["", "noExperience", "between1And3", "between3And6", "moreThan6"]
-            sel = tui.select([TITLE_REVIEW, "Опыт работы"], [exp_label(c) for c in codes])
-            if sel is not None:
-                profile.experience = codes[sel]
+            val = ui.select("Опыт работы", [Choice(exp_label(c), c) for c in codes],
+                            default=profile.experience)
+            if val is not None:
+                profile.experience = val
 
 
 def _build_parser() -> argparse.ArgumentParser:
