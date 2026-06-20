@@ -145,12 +145,19 @@ def _choose_sources(state: dict) -> None:
     state["sources"] = ui.multiselect("Источники вакансий", choices, default=state["sources"], min_select=1)
     if "telegram" in state["sources"]:
         _enter_channels(state)
+        v = ui.ask_text("Сколько последних постов брать с каждого канала", str(state["tg_limit"]))
+        if v.isdigit() and int(v) > 0:
+            state["tg_limit"] = int(v)
     if "pdf" in state["sources"]:
         state["pdf_vacancies"] = ui.ask_text("Путь к PDF/txt с вакансиями", state["pdf_vacancies"])
 
 
 def _source_label(state: dict) -> str:
-    names = {"file": "файл", "telegram": f"telegram({len(state['tg_channels'])})", "pdf": "pdf"}
+    names = {
+        "file": "файл",
+        "telegram": f"telegram({len(state['tg_channels'])}к×{state['tg_limit']}п)",
+        "pdf": "pdf",
+    }
     return " + ".join(names.get(s, s) for s in state["sources"]) or "файл"
 
 
