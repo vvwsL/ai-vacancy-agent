@@ -96,10 +96,12 @@ def load_criteria(path: str | Path) -> Criteria:
 
 # Провайдер -> имя переменной окружения с ключом. Все OpenAI-совместимы.
 PROVIDER_KEY_ENV: dict[str, str] = {
-    "gemini": "GEMINI_API_KEY",
+    "cerebras": "CEREBRAS_API_KEY",
     "groq": "GROQ_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
-    "cerebras": "CEREBRAS_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+    "cohere": "COHERE_API_KEY",
+    "gemini": "GEMINI_API_KEY",
 }
 
 

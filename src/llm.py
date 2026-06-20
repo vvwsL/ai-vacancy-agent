@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -44,7 +45,24 @@ PROVIDERS: dict[str, dict[str, str]] = {
         "model": "llama-3.3-70b",
         "key_env": "CEREBRAS_API_KEY",
     },
+    "mistral": {
+        "url": "https://api.mistral.ai/v1/chat/completions",
+        "model": "mistral-small-latest",
+        "key_env": "MISTRAL_API_KEY",
+    },
+    "cohere": {
+        # OpenAI-совместимый endpoint Cohere.
+        "url": "https://api.cohere.ai/compatibility/v1/chat/completions",
+        "model": "command-r-08-2024",
+        "key_env": "COHERE_API_KEY",
+    },
 }
+
+# Порядок запасных провайдеров при failover (по щедрости free-tier).
+_FALLBACK_ORDER = ["cerebras", "groq", "openrouter", "mistral", "cohere", "gemini"]
+
+# Сюда пишем события переключения провайдера (main потом залогирует).
+FALLBACKS: list[str] = []
 
 
 # --------------------------------------------------------------------------- #
@@ -430,11 +448,61 @@ class LLMError(Exception):
     pass
 
 
+# Глобальный троттлинг: не чаще, чем rpm запросов в минуту (защита от 429-burst).
+_last_call_ts = 0.0
+
+
+def _throttle(rpm: int) -> None:
+    """Выдержать минимальный интервал между вызовами LLM (60/rpm секунд)."""
+    global _last_call_ts
+    if rpm <= 0:
+        return
+    min_gap = 60.0 / rpm
+    wait = min_gap - (time.time() - _last_call_ts)
+    if wait > 0:
+        time.sleep(wait)
+    _last_call_ts = time.time()
+
+
+def _provider_chain(primary: str, primary_key: str | None) -> list[tuple[str, str]]:
+    """Цепочка (провайдер, ключ): сначала выбранный, затем запасные с ключами в .env."""
+    chain: list[tuple[str, str]] = []
+    if primary in PROVIDERS and primary_key:
+        chain.append((primary, primary_key))
+    for p in _FALLBACK_ORDER:
+        if p == primary or p not in PROVIDERS:
+            continue
+        key = os.environ.get(PROVIDERS[p]["key_env"])
+        if key:
+            chain.append((p, key))
+    return chain
+
+
 def _llm_call(messages: list[dict], tools: list[dict] | None, config: dict, provider: str, api_key: str) -> dict:
-    """Один вызов OpenAI-совместимого chat/completions. Бросает LLMError при сети/429/таймауте."""
+    """Вызов LLM с failover: первый провайдер упал -> пробуем следующий с ключом."""
+    chain = _provider_chain(provider, api_key)
+    if not chain:
+        raise LLMError("нет доступных провайдеров (ключи не заданы)")
+    last_err = ""
+    for i, (prov, key) in enumerate(chain):
+        try:
+            data = _single_call(messages, tools, config, prov, key)
+            if i > 0:
+                FALLBACKS.append(f"{provider} -> {prov}")
+            return data
+        except LLMError as e:
+            last_err = f"{prov}: {e}"
+            continue
+    raise LLMError(f"все провайдеры недоступны ({last_err})")
+
+
+def _single_call(messages: list[dict], tools: list[dict] | None, config: dict, provider: str, api_key: str) -> dict:
+    """Один вызов OpenAI-совместимого chat/completions к ОДНОМУ провайдеру.
+
+    Троттлинг по rpm + backoff-ретрай на RPM-429/сеть; дневная квота -> сразу падаем.
+    """
     llm_cfg = config.get("llm", {})
     spec = PROVIDERS[provider]
-    # Модель можно переопределить в config (model_groq и т.п.), иначе дефолт провайдера.
     model = llm_cfg.get(f"model_{provider}", spec["model"])
     payload: dict[str, Any] = {
         "model": model,
@@ -445,24 +513,38 @@ def _llm_call(messages: list[dict], tools: list[dict] | None, config: dict, prov
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
-    req = urllib.request.Request(
-        spec["url"],
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
+    data = json.dumps(payload).encode("utf-8")
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     timeout = llm_cfg.get("request_timeout", 40)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "ignore")[:200]
-        raise LLMError(f"HTTP {e.code}: {body}") from e
-    except (urllib.error.URLError, TimeoutError) as e:
-        raise LLMError(f"Сетевая ошибка: {e}") from e
+    rpm = llm_cfg.get("rpm", 12)
+    max_retries = llm_cfg.get("max_retries", 4)
+
+    last_err = ""
+    for attempt in range(max_retries + 1):
+        _throttle(rpm)
+        req = urllib.request.Request(spec["url"], data=data, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "ignore")[:300]
+            last_err = f"HTTP {e.code}: {body}"
+            # Дневная квота кончилась — ретраить бессмысленно, падаем сразу.
+            daily_quota = "exceeded your current quota" in body or "quota" in body.lower() and "rate" not in body.lower()
+            if e.code == 429 and attempt < max_retries and not daily_quota:
+                # RPM-всплеск: уважаем Retry-After, иначе экспоненциальный backoff.
+                ra = e.headers.get("Retry-After")
+                delay = float(ra) if (ra and ra.isdigit()) else min(2 ** attempt * 5, 60)
+                time.sleep(delay)
+                continue
+            raise LLMError(last_err) from e
+        except (urllib.error.URLError, TimeoutError) as e:
+            last_err = f"Сетевая ошибка: {e}"
+            if attempt < max_retries:
+                time.sleep(2 ** attempt)
+                continue
+            raise LLMError(last_err) from e
+    raise LLMError(last_err or "LLM: исчерпаны попытки")
 
 
 # --------------------------------------------------------------------------- #

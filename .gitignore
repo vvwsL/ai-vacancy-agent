@@ -2,6 +2,10 @@
 runs/
 user_settings.json
 data/fetched_vacancies.json
+data/.profile_cache.json
+# Личные резюме не коммитим (в репо только пример resume.txt).
+data/*.pdf
+data/*.docx
 __pycache__/
 *.pyc
 .pytest_cache/

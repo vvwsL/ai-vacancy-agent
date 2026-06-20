@@ -1,8 +1,8 @@
-"""Интерактивное терминальное меню — лёгкий запуск без флагов.
+"""Интерактивное меню со стрелочной навигацией (TUI).
 
 Запуск:  python -m src.menu   (или двойной клик по start.bat на Windows)
-Тонкая обёртка над src.main: меню собирает аргументы и вызывает main().
-Настройки сохраняются между запусками в user_settings.json.
+Навигация: ↑/↓ — выбор, Enter — ок, Esc — назад. Текстовые поля вводятся обычно.
+Настройки сохраняются в user_settings.json.
 """
 from __future__ import annotations
 
@@ -14,38 +14,12 @@ import sys
 from pathlib import Path
 
 from . import main as main_mod
-from .config import load_config
+from . import tui
+from .config import PROVIDER_KEY_ENV, load_config
 
-PROVIDERS = ["auto", "gemini", "groq", "openrouter", "cerebras", "dryrun"]
 RESUME_EXTS = {".pdf", ".docx", ".txt", ".md"}
 SETTINGS_FILE = "user_settings.json"
-
-
-# --------------------------------------------------------------------------- #
-# Экран: очистка + «хлебная крошка»
-# --------------------------------------------------------------------------- #
-def _clear() -> None:
-    try:
-        os.system("cls" if os.name == "nt" else "clear")
-    except Exception:
-        pass
-
-
-def screen(breadcrumb: str) -> None:
-    _utf8_stdout()
-    _clear()
-    bar = "=" * 48
-    print(bar)
-    print("  AI-агент подбора AI/ML вакансий")
-    print(f"  {breadcrumb}")
-    print(bar)
-
-
-def _utf8_stdout() -> None:
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-    except Exception:
-        pass
+TITLE = "AI-агент подбора AI/ML вакансий"
 
 
 # --------------------------------------------------------------------------- #
@@ -77,7 +51,6 @@ def load_state() -> dict:
             state.update(json.loads(p.read_text(encoding="utf-8")))
         except Exception:
             pass
-    # Миграция со старого одиночного "source".
     if "sources" not in state or not isinstance(state.get("sources"), list):
         state["sources"] = [state.get("source", "file")]
     state.pop("source", None)
@@ -92,7 +65,7 @@ def save_state(state: dict) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Выбор резюме / провайдера
+# Подменю
 # --------------------------------------------------------------------------- #
 def _list_resumes() -> list[Path]:
     data = Path("data")
@@ -101,111 +74,102 @@ def _list_resumes() -> list[Path]:
     return sorted(p for p in data.iterdir() if p.suffix.lower() in RESUME_EXTS)
 
 
-def _preview_resume(path: str) -> None:
-    """Показать первые содержательные строки резюме (без LLM)."""
+def _preview_resume(path: str) -> list[str]:
     try:
         from .resume import extract_text
         text = extract_text(path)
     except Exception as e:
-        print(f"\n(предпросмотр недоступен: {e})")
-        return
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()][:12]
-    print("\nПредпросмотр текущего резюме (ключевые строки):")
-    for ln in lines:
-        print("  | " + ln[:78])
-    print("  ...")
+        return [f"(предпросмотр недоступен: {e})"]
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()][:8]
+    return ["Предпросмотр:"] + ["  | " + ln[:60] for ln in lines]
 
 
-def _choose_resume(current: str) -> str:
-    screen("Меню › Резюме")
-    print(f"Текущее резюме: {current}")
-    _preview_resume(current)
+def _choose_resume(state: dict) -> None:
     files = _list_resumes()
-    print("\nРезюме в папке data/:")
-    for i, f in enumerate(files, 1):
-        print(f"  {i}) {f.name}")
-    print("  0) ввести путь вручную")
-    ans = input(f"\nВыбор [{current}, Enter — оставить]: ").strip()
-    if not ans:
-        return current
-    if ans == "0":
-        return input("Путь к резюме: ").strip() or current
-    if ans.isdigit() and 1 <= int(ans) <= len(files):
-        return str(files[int(ans) - 1])
-    return current
+    options = [f.name for f in files] + ["[ввести путь вручную]"]
+    header = [TITLE, "Меню › Резюме", f"текущее: {state['resume']}"] + _preview_resume(state["resume"])
+    idx = tui.select(header, options)
+    if idx is None:
+        return
+    if idx == len(files):
+        tui.clear()
+        path = input("Путь к резюме: ").strip()
+        if path:
+            state["resume"] = path
+    else:
+        state["resume"] = str(files[idx])
 
 
-def _choose_provider(current: str) -> str:
-    screen("Меню › Провайдер LLM")
-    print("auto = первый, для которого есть ключ в .env\n")
-    for i, p in enumerate(PROVIDERS, 1):
-        print(f"  {i}) {p}")
-    ans = input(f"\nВыбор [{current}]: ").strip()
-    if ans.isdigit() and 1 <= int(ans) <= len(PROVIDERS):
-        return PROVIDERS[int(ans) - 1]
-    return current
+def _available_providers() -> list[str]:
+    """auto + провайдеры, у которых есть ключ в окружении, + dryrun."""
+    with_keys = [p for p, env in PROVIDER_KEY_ENV.items() if os.environ.get(env)]
+    return ["auto"] + with_keys + ["dryrun"]
 
 
-# --------------------------------------------------------------------------- #
-# Источник вакансий
-# --------------------------------------------------------------------------- #
-def _enter_channels(current: list[str]) -> list[str]:
-    channels = list(current)
+def _choose_provider(state: dict) -> None:
+    providers = _available_providers()
+    hint = "только провайдеры с ключом в .env" if len(providers) > 2 else "ключей нет — доступен только офлайн"
+    start = providers.index(state["provider"]) if state["provider"] in providers else 0
+    idx = tui.select([TITLE, "Меню › Провайдер LLM", hint], providers, start=start)
+    if idx is not None:
+        state["provider"] = providers[idx]
+
+
+def _enter_channels(state: dict) -> None:
+    tui.clear()
+    print("Текущие Telegram-каналы:")
+    for c in state["tg_channels"]:
+        print(f"  • {c}")
+    if not state["tg_channels"]:
+        print("  (пусто)")
+    print("\nВводи ссылку на канал (напр. https://t.me/tagir_analyzes) и Enter.")
+    print("'clear' — очистить список, пустой Enter — готово.")
+    channels = list(state["tg_channels"])
     while True:
-        screen("Меню › Источник › Telegram-каналы")
-        print("Текущие каналы:")
-        for c in channels:
-            print(f"  • {c}")
-        if not channels:
-            print("  (пусто)")
-        print("\nВведи ссылку на канал (напр. https://t.me/tagir_analyzes) и Enter.")
-        print("Команды: 'clear' — очистить список, пустой Enter — назад.")
-        ans = input("Канал: ").strip()
+        try:
+            ans = input("Канал: ").strip()
+        except EOFError:
+            break
         if not ans:
-            return channels
+            break
         if ans.lower() == "clear":
             channels = []
+            print("  список очищен")
             continue
         channels.append(ans)
+        print(f"  добавлен: {ans}")
+    state["tg_channels"] = channels
 
 
-def _toggle(state: dict, src: str) -> None:
-    s = state["sources"]
-    if src in s:
-        s.remove(src)
-    else:
-        s.append(src)
-    if not s:                 # хотя бы один источник должен остаться
-        s.append("file")
-
-
-def _choose_source(state: dict) -> None:
-    """Множественный выбор источников: можно включить несколько сразу."""
+def _choose_sources(state: dict) -> None:
+    """Мультивыбор: Enter переключает [x], Esc — назад."""
     while True:
         s = state["sources"]
-        screen("Меню › Источники вакансий (можно несколько)")
-        print(f"  1) [{'x' if 'file' in s else ' '}] Локальный файл (data/vacancies.json)")
-        print(f"  2) [{'x' if 'telegram' in s else ' '}] Telegram-каналы ({len(state['tg_channels'])} шт.)")
-        print(f"  3) [{'x' if 'pdf' in s else ' '}] PDF/текст ({state['pdf_vacancies'] or 'путь не задан'})")
-        print("  4) Изменить список Telegram-каналов")
-        print("  5) Указать путь к PDF/txt")
-        print("  0) ← назад   (или Enter)")
-        c = input("\nВыбор (цифра = вкл/выкл): ").strip()
-        if c == "1":
-            _toggle(state, "file")
-        elif c == "2":
-            _toggle(state, "telegram")
-        elif c == "3":
-            _toggle(state, "pdf")
-        elif c == "4":
-            state["tg_channels"] = _enter_channels(state["tg_channels"])
-        elif c == "5":
-            screen("Меню › Источники › PDF/текст")
-            path = input(f"Путь к PDF/txt с вакансиями [{state['pdf_vacancies']}]: ").strip()
+        options = [
+            f"[{'x' if 'file' in s else ' '}] Локальный файл (data/vacancies.json)",
+            f"[{'x' if 'telegram' in s else ' '}] Telegram-каналы ({len(state['tg_channels'])} шт.)",
+            f"[{'x' if 'pdf' in s else ' '}] PDF/текст ({state['pdf_vacancies'] or 'путь не задан'})",
+            "Изменить список Telegram-каналов",
+            f"Указать путь к PDF/txt ({state['pdf_vacancies'] or '—'})",
+        ]
+        idx = tui.select([TITLE, "Меню › Источники (Enter — вкл/выкл, Esc — назад)"], options)
+        if idx is None:
+            if not state["sources"]:
+                state["sources"] = ["file"]
+            return
+        if idx in (0, 1, 2):
+            key = ["file", "telegram", "pdf"][idx]
+            if key in s:
+                s.remove(key)
+            else:
+                s.append(key)
+        elif idx == 3:
+            _enter_channels(state)
+        elif idx == 4:
+            tui.clear()
+            path = input(f"Путь к PDF/txt [{state['pdf_vacancies']}]: ").strip()
             if path:
                 state["pdf_vacancies"] = path
-        else:
-            return
 
 
 def _source_label(state: dict) -> str:
@@ -226,7 +190,7 @@ def _source_label(state: dict) -> str:
 def _print_summary(run_dir: Path) -> None:
     report = run_dir / "report.md"
     if not report.exists():
-        print("\nОтчёта нет (прогон прервался). Хвост run.log:")
+        print("\nОтчёта нет. Хвост run.log:")
         log = run_dir / "run.log"
         if log.exists():
             for line in log.read_text(encoding="utf-8").splitlines()[-8:]:
@@ -242,9 +206,8 @@ def _print_summary(run_dir: Path) -> None:
     print("\nТоп:")
     for i, ln in enumerate(lines):
         if ln.startswith("### "):
-            title = ln[4:].strip()
             score = lines[i + 1].replace("*", "").strip() if i + 1 < len(lines) and "Score" in lines[i + 1] else ""
-            print(f"  • {title}  ({score})")
+            print(f"  • {ln[4:].strip()}  ({score})")
 
 
 def _open_in_os(path: Path) -> None:
@@ -261,49 +224,51 @@ def _open_in_os(path: Path) -> None:
         print(f"Не удалось открыть: {e}\nФайл: {path}")
 
 
+def _run_tests() -> None:
+    tui.clear()
+    print("Запуск тестов (pytest)...\n")
+    try:
+        subprocess.run([sys.executable, "-m", "pytest", "-q"], check=False)
+    except Exception as e:
+        print(f"Не удалось запустить pytest: {e}")
+    input("\nEnter — назад...")
+
+
 def _latest_run() -> Path | None:
     runs = Path("runs")
     dirs = sorted((d for d in runs.iterdir() if d.is_dir()), reverse=True) if runs.exists() else []
     return dirs[0] if dirs else None
 
 
-def _run_actions(run_dir: Path, title: str) -> None:
-    """Подменю над одним прогоном: сводка / открыть отчёт. Enter — назад."""
+def _run_actions(run_dir: Path, crumb: str) -> None:
     while True:
-        screen(title)
-        print(f"Прогон: {run_dir.name}")
-        print(f"Папка с логами: {run_dir}")
-        print("\n  1) Краткая сводка (без LLM)")
-        print("  2) Открыть отчёт в приложении (Блокнот и т.п.)")
-        print("  0) ← назад   (или Enter)")
-        c = input("\nВыбор: ").strip()
-        if c == "1":
-            _print_summary(run_dir)
-            input("\nEnter — назад...")
-        elif c == "2":
-            _open_in_os(run_dir / "report.md")
-            input("\nEnter — назад...")
-        else:
+        idx = tui.select(
+            [TITLE, crumb, f"папка: {run_dir}"],
+            ["Краткая сводка (без LLM)", "Открыть отчёт в приложении"],
+        )
+        if idx is None:
             return
+        if idx == 0:
+            tui.clear()
+            _print_summary(run_dir)
+        else:
+            tui.clear()
+            _open_in_os(run_dir / "report.md")
+        input("\nEnter — назад...")
 
 
 def _history_menu() -> None:
-    screen("Меню › История прогонов")
     runs = Path("runs")
     dirs = sorted((d for d in runs.iterdir() if d.is_dir()), reverse=True) if runs.exists() else []
     if not dirs:
+        tui.clear()
         print("Прогонов пока нет (папка runs/ пуста).")
         input("\nEnter — назад...")
         return
     shown = dirs[:20]
-    for i, d in enumerate(shown, 1):
-        print(f"  {i}) {d.name}")
-    print("  0) ← назад")
-    ans = input("\nВыбери прогон: ").strip()
-    if not ans.isdigit() or not (1 <= int(ans) <= len(shown)):
-        return
-    run_dir = shown[int(ans) - 1]
-    _run_actions(run_dir, "Меню › История › прогон")
+    idx = tui.select([TITLE, "Меню › История прогонов"], [d.name for d in shown])
+    if idx is not None:
+        _run_actions(shown[idx], "Меню › История › прогон")
 
 
 # --------------------------------------------------------------------------- #
@@ -326,61 +291,61 @@ def _build_argv(state: dict) -> list[str]:
 
 
 def run_menu() -> int:
+    tui.utf8_stdout()
+    main_mod._load_dotenv()  # чтобы видеть, у каких провайдеров есть ключ
     state = load_state()
+    cursor = 0  # запоминаем позицию, чтобы не сбрасывалась после действия
     while True:
-        screen("Главное меню")
-        print(f"  1) Резюме:            {state['resume']}")
-        print(f"  2) Источник вакансий: {_source_label(state)}")
-        print(f"  3) Провайдер LLM:     {state['provider']}")
-        print(f"  4) Топ-N вакансий:    {state['top_n']}")
-        print(f"  5) Режим разбора:     {'без LLM (dry-run)' if state['dry_run'] else 'с LLM'}")
-        print("  6) > Запустить   (или просто Enter)")
-        print("  7) История прогонов")
-        print("  0) Выход")
+        labels = [
+            f"Резюме:            {state['resume']}",
+            f"Источники:         {_source_label(state)}",
+            f"Провайдер LLM:     {state['provider']}",
+            f"Топ-N вакансий:    {state['top_n']}",
+            f"Режим разбора:     {'без LLM (dry-run)' if state['dry_run'] else 'с LLM'}",
+            "▶ Запустить",
+            "История прогонов",
+            "Прогнать тесты (pytest)",
+            "Выход",
+        ]
         try:
-            choice = input("\nВыбери пункт [Enter = запустить]: ").strip()
-        except (KeyboardInterrupt, EOFError):
+            idx = tui.select([TITLE, "Главное меню"], labels, start=cursor)
+        except KeyboardInterrupt:
             print("\nПока!")
             return 0
-        if not choice:
-            choice = "6"  # Enter = шаг вперёд = запустить
-
+        if idx is None or idx == 8:
+            save_state(state)
+            print("Пока!")
+            return 0
+        cursor = idx  # остаёмся на выбранном пункте
         try:
-            if choice == "1":
-                state["resume"] = _choose_resume(state["resume"])
-            elif choice == "2":
-                _choose_source(state)
-            elif choice == "3":
-                state["provider"] = _choose_provider(state["provider"])
-            elif choice == "4":
+            if idx == 0:
+                _choose_resume(state)
+            elif idx == 1:
+                _choose_sources(state)
+            elif idx == 2:
+                _choose_provider(state)
+            elif idx == 3:
+                tui.clear()
                 v = input("Топ-N (число): ").strip()
                 if v.isdigit() and int(v) > 0:
                     state["top_n"] = int(v)
-            elif choice == "5":
-                ans = input("Использовать LLM? [y = с LLM / n = без LLM (dry-run)]: ").strip().lower()
-                if ans:
-                    state["dry_run"] = not (ans.startswith("y") or ans.startswith("д"))
-            elif choice == "6":
+            elif idx == 4:
+                state["dry_run"] = not state["dry_run"]
+            elif idx == 5:
                 save_state(state)
-                screen("Запуск")
+                tui.clear()
                 main_mod.main(_build_argv(state))
                 rd = _latest_run()
+                input("\nEnter — посмотреть результат..." if rd else "\nEnter — в меню...")
                 if rd:
-                    input("\nEnter — посмотреть результат...")
                     _run_actions(rd, "Результат прогона")
-                else:
-                    input("\nEnter — вернуться в меню...")
-            elif choice == "7":
+            elif idx == 6:
                 _history_menu()
-            elif choice == "0":
-                save_state(state)
-                print("Пока!")
-                return 0
-            else:
-                continue
+            elif idx == 7:
+                _run_tests()
             save_state(state)
         except KeyboardInterrupt:
-            print("\n(действие отменено, возврат в меню)")
+            print("\n(действие отменено)")
             input("Enter — продолжить...")
 
 

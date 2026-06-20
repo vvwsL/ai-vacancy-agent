@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import sys
 from datetime import datetime
@@ -27,13 +28,59 @@ from .config import (
 import json
 
 from .fetch_telegram import TelegramError, fetch_posts, normalize_channel
+from . import llm as llm_mod
 from .llm import CandidateProfile, analyze, extract_profile, extract_vacancies_from_text, llm_available
 from .loader import LoaderError, load_vacancies
 from .report import RunLogger, render_report, write_artifacts
 from .resume import ResumeError, extract_text
 from .scoring import filter_and_score
+from . import tui
+
+TITLE_REVIEW = "AI-агент · профиль кандидата"
 
 FETCHED_FILE = "data/fetched_vacancies.json"  # сюда пишем вакансии из telegram/pdf (не трогаем мок)
+PROFILE_CACHE = "data/.profile_cache.json"    # кэш LLM-профиля по хэшу резюме (экономия токенов)
+
+
+def _get_profile(text: str, config, provider, api_key, log: RunLogger, refresh: bool) -> CandidateProfile:
+    """Профиль из резюме с кэшированием по содержимому (не дёргаем LLM, если не менялось).
+
+    Кэшируем только LLM-результат; rule-based (dryrun) бесплатен и не кэшируется.
+    """
+    h = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    cache: dict = {}
+    p = Path(PROFILE_CACHE)
+    if p.exists():
+        try:
+            cache = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            cache = {}
+    if not refresh and h in cache:
+        log.log("Профиль взят из кэша (резюме не менялось) — LLM не вызывается")
+        return CandidateProfile(**cache[h])
+
+    profile = extract_profile(text, config, provider, api_key)
+    if provider != "dryrun":  # сохраняем только осмысленный LLM-профиль
+        _save_profile_cache(text, profile)
+        log.log("Профиль извлечён LLM и сохранён в кэш")
+    return profile
+
+
+def _save_profile_cache(text: str, profile: CandidateProfile) -> None:
+    """Сохранить/обновить профиль в кэше по хэшу резюме (после правки тоже)."""
+    h = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    p = Path(PROFILE_CACHE)
+    cache: dict = {}
+    if p.exists():
+        try:
+            cache = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            cache = {}
+    cache[h] = profile.model_dump()
+    try:
+        p.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def _load_dotenv(path: str = ".env") -> None:
@@ -60,6 +107,19 @@ _EXPERIENCE_TO_LEVELS = {
     "moreThan6": ["senior", "lead"],
 }
 
+# Человекочитаемые подписи опыта (внутренние коды hh -> русский).
+EXPERIENCE_LABELS = {
+    "": "не указан",
+    "noExperience": "нет опыта",
+    "between1And3": "1–3 года",
+    "between3And6": "3–6 лет",
+    "moreThan6": "6+ лет",
+}
+
+
+def exp_label(code: str) -> str:
+    return EXPERIENCE_LABELS.get(code, code or "не указан")
+
 
 def target_levels(p: CandidateProfile) -> list[str]:
     """Уровни вакансий для поиска. Из опыта (код) если он есть, иначе из level LLM."""
@@ -82,21 +142,57 @@ def _criteria_from_profile(p: CandidateProfile) -> Criteria:
 def _print_profile(profile: CandidateProfile, log: RunLogger) -> None:
     log.log("Агент понял профиль из резюме:")
     log.log(f"  роль:    {', '.join(profile.role) or '-'}")
-    log.log(f"  опыт:    {profile.experience or '(не задан)'}")
+    log.log(f"  опыт:    {exp_label(profile.experience)}")
     log.log(f"  уровень вакансий для поиска: {', '.join(target_levels(profile)) or '-'}")
     log.log(f"  навыки:  {', '.join(profile.skills) or '-'}")
     log.log(f"  формат:  {', '.join(profile.work_format) or '-'}")
     log.log(f"  город:   {profile.city or '-'}")
 
 
-def _confirm_profile(assume_yes: bool, log: RunLogger) -> None:
-    """Дать подтвердить профиль (если не --yes). Правка — через резюме/config + перезапуск."""
-    if assume_yes:
-        return
-    try:
-        input("\nПрофиль верный? [Enter — продолжить / Ctrl+C — выйти и поправить резюме]: ")
-    except EOFError:
-        return  # неинтерактивный stdin
+def _clean_profile(p: CandidateProfile) -> CandidateProfile:
+    """Убрать мусор: пустые строки в списках, лишние пробелы."""
+    p.role = [s.strip() for s in p.role if s and s.strip()]
+    p.skills = [s.strip() for s in p.skills if s and s.strip()]
+    p.level = [s.strip() for s in p.level if s and s.strip()]
+    p.work_format = [s.strip() for s in p.work_format if s and s.strip()]
+    p.city = (p.city or "").strip()
+    p.experience = (p.experience or "").strip()
+    return p
+
+
+def _review_profile(profile: CandidateProfile, log: RunLogger) -> CandidateProfile:
+    """Показать профиль и дать поправить его поля прямо в программе (если интерактивно)."""
+    while True:
+        print("\n--- Профиль кандидата (что понял агент) ---")
+        print(f"  1) роль:    {', '.join(profile.role) or '-'}")
+        print(f"  2) навыки:  {', '.join(profile.skills) or '-'}")
+        print(f"  3) формат:  {', '.join(profile.work_format) or '-'}")
+        print(f"  4) город:   {profile.city or '-'}")
+        print(f"  5) опыт:    {exp_label(profile.experience)}  (уровень для поиска: {', '.join(target_levels(profile))})")
+        try:
+            ans = input("Enter — всё верно / номер поля — править: ").strip()
+        except EOFError:
+            return profile
+        if not ans:
+            return profile
+        if ans == "1":
+            v = input("Роли через запятую: ").strip()
+            if v:
+                profile.role = [x.strip() for x in v.split(",") if x.strip()]
+        elif ans == "2":
+            v = input("Навыки через запятую: ").strip()
+            if v:
+                profile.skills = [x.strip() for x in v.split(",") if x.strip()]
+        elif ans == "3":
+            v = input("Формат (remote/hybrid/office) через запятую: ").strip()
+            profile.work_format = [x.strip() for x in v.split(",") if x.strip()]
+        elif ans == "4":
+            profile.city = input("Город: ").strip()
+        elif ans == "5":
+            codes = ["", "noExperience", "between1And3", "between3And6", "moreThan6"]
+            sel = tui.select([TITLE_REVIEW, "Опыт работы"], [exp_label(c) for c in codes])
+            if sel is not None:
+                profile.experience = codes[sel]
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -118,8 +214,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--criteria", default="criteria.md", help="критерии (fallback, если нет резюме)")
     p.add_argument("--top-n", type=int, dest="top_n", help="сколько вакансий разбирать (топ по score)")
     p.add_argument("--dry-run", action="store_true", help="без LLM (rule-based, детерминированно)")
+    p.add_argument("--refresh-profile", action="store_true", dest="refresh_profile",
+                   help="заново извлечь профиль из резюме, игнорируя кэш")
     p.add_argument("--yes", action="store_true", help="не спрашивать подтверждение (для тестов/CI)")
-    p.add_argument("--provider", choices=["auto", "gemini", "groq", "openrouter", "cerebras", "dryrun"])
+    p.add_argument("--provider",
+                   choices=["auto", "gemini", "groq", "openrouter", "cerebras", "mistral", "cohere", "dryrun"])
     return p
 
 
@@ -201,6 +300,7 @@ def _fail(output: str, log: RunLogger, msg: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     _load_dotenv()
+    llm_mod.FALLBACKS.clear()  # сброс журнала переключений провайдера
     run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log = RunLogger()
     log.log("=== Запуск агента ===")
@@ -246,12 +346,18 @@ def main(argv: list[str] | None = None) -> int:
         try:
             text = extract_text(resume_path)
             log.log(f"Резюме прочитано: {resume_path} ({len(text)} симв.)")
-            profile = extract_profile(text, config, provider, api_key)
+            profile = _get_profile(text, config, provider, api_key, log, args.refresh_profile)
         except ResumeError as e:
             return _fail(out_dir, log, f"резюме: {e}")
-        criteria = _criteria_from_profile(profile)
+        profile = _clean_profile(profile)
         _print_profile(profile, log)
-        _confirm_profile(args.yes, log)
+        if not args.yes:
+            before = profile.model_dump()
+            profile = _clean_profile(_review_profile(profile, log))
+            if profile.model_dump() != before:   # правили — обновим кэш
+                _save_profile_cache(text, profile)
+                log.log("Профиль отредактирован вручную и сохранён в кэш")
+        criteria = _criteria_from_profile(profile)
     else:
         try:
             criteria = load_criteria(args.criteria)
@@ -292,6 +398,10 @@ def main(argv: list[str] | None = None) -> int:
         analyses.append({"scored": sc, "analysis": res["analysis"], "mode": res["mode"]})
         traces.append(res["trace"])
 
+    if llm_mod.FALLBACKS:
+        uniq = sorted(set(llm_mod.FALLBACKS))
+        log.log(f"Failover провайдера сработал: {', '.join(uniq)}")
+
     # --- Артефакты ---
     meta = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -307,11 +417,12 @@ def main(argv: list[str] | None = None) -> int:
     if profile:
         profile_info = [
             f"роль: {', '.join(profile.role) or '-'}",
-            f"уровень для поиска: {', '.join(target_levels(profile)) or '-'} (опыт: {profile.experience or '-'})",
+            f"уровень для поиска: {', '.join(target_levels(profile)) or '-'} (опыт: {exp_label(profile.experience)})",
             f"навыки: {', '.join(profile.skills) or '-'}",
             f"формат: {', '.join(profile.work_format) or '-'} | город: {profile.city or '-'}",
         ]
     report_md = render_report(analyses, rejected_hard, borderline, meta, profile_info)
+    meta["fallbacks"] = sorted(set(llm_mod.FALLBACKS))
     full_trace = {
         "meta": meta,
         "profile": profile.model_dump() if profile else None,

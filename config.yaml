@@ -33,6 +33,7 @@ llm:
   # Модели можно переопределить (иначе берётся дефолт провайдера из src/llm.py PROVIDERS):
   model_groq: llama-3.3-70b-versatile
   temperature: 0.0       # детерминизм, насколько возможно для воспроизводимости
-  max_agent_steps: 4     # лимит итераций tool-loop — защита от зацикливания
+  max_agent_steps: 3     # лимит итераций tool-loop — защита от зацикливания (и экономия вызовов)
   request_timeout: 40    # сек на один HTTP-запрос к модели
-  max_retries: 2         # ретраи при не-JSON ответе / сетевой ошибке
+  max_retries: 4         # ретраи на 429/сеть с backoff
+  rpm: 10                # макс. запросов в минуту к LLM (троттлинг против 429-burst free-tier)
