@@ -1,6 +1,6 @@
 {
   "meta": {
-    "timestamp": "2026-06-20 04:47:22",
+    "timestamp": "2026-06-20 05:03:01",
     "provider": "dryrun",
     "source": "file",
     "raw_count": 14,
@@ -8,6 +8,7 @@
     "rejected_rows": 2,
     "duplicates": 1,
     "scored_count": 10,
+    "min_score": 45,
     "fallbacks": []
   },
   "profile": {

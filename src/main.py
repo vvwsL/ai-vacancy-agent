@@ -417,6 +417,7 @@ def main(argv: list[str] | None = None) -> int:
         "rejected_rows": len(loaded.rejected_rows),
         "duplicates": len(loaded.duplicates),
         "scored_count": len(scored),
+        "min_score": config.get("min_relevant_score", 45),
     }
     profile_info = None
     if profile:

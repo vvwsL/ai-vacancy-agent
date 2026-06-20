@@ -1,25 +1,25 @@
-04:47:22 | === Запуск агента ===
-04:47:22 | Провайдер LLM: dryrun
-04:47:22 | Источники вакансий: file
-04:47:22 | Каталог прогона: output
-04:47:22 | Резюме прочитано: data/resume.txt (593 симв.)
-04:47:22 | Агент понял профиль из резюме:
-04:47:22 |   роль:    ml engineer, ai engineer, nlp engineer
-04:47:22 |   опыт:    не указан
-04:47:22 |   уровень вакансий для поиска: intern, junior
-04:47:22 |   навыки:  python, pytorch, machine learning, deep learning, nlp, llm, rag, transformers, sql, numpy, pandas, docker, git
-04:47:22 |   формат:  remote
-04:47:22 |   город:   -
-04:47:22 | Загружено: 14 | валидных: 11 | битых: 2 | дублей: 1
-04:47:22 | После hard-фильтра: 10 (отсеяно по уровню: 1)
-04:47:22 | Разбор v006 (Junior ML Engineer) score=72.3 ...
-04:47:22 |   режим: rule_based; приоритет: high
-04:47:22 | Разбор v001 (ML Engineer Intern) score=71.6 ...
-04:47:22 |   режим: rule_based; приоритет: high
-04:47:22 | Разбор v003 (NLP Engineer (Junior)) score=70.5 ...
-04:47:22 |   режим: rule_based; приоритет: high
-04:47:22 | Разбор v002 (Junior AI Engineer) score=67.5 ...
-04:47:22 |   режим: rule_based; приоритет: medium
-04:47:22 | Разбор v007 (AI Research Intern) score=58.2 ...
-04:47:22 |   режим: rule_based; приоритет: medium
-04:47:22 | Готово. Результат: output/report.md (+ trace.json, run.log)
+05:03:01 | === Запуск агента ===
+05:03:01 | Провайдер LLM: dryrun
+05:03:01 | Источники вакансий: file
+05:03:01 | Каталог прогона: output
+05:03:01 | Резюме прочитано: data/resume.txt (593 симв.)
+05:03:01 | Агент понял профиль из резюме:
+05:03:01 |   роль:    ml engineer, ai engineer, nlp engineer
+05:03:01 |   опыт:    не указан
+05:03:01 |   уровень вакансий для поиска: intern, junior
+05:03:01 |   навыки:  python, pytorch, machine learning, deep learning, nlp, llm, rag, transformers, sql, numpy, pandas, docker, git
+05:03:01 |   формат:  remote
+05:03:01 |   город:   -
+05:03:01 | Загружено: 14 | валидных: 11 | битых: 2 | дублей: 1
+05:03:01 | После hard-фильтра: 10 (отсеяно по уровню: 1)
+05:03:01 | Разбор v006 (Junior ML Engineer) score=72.3 ...
+05:03:01 |   режим: rule_based; приоритет: high
+05:03:01 | Разбор v001 (ML Engineer Intern) score=71.6 ...
+05:03:01 |   режим: rule_based; приоритет: high
+05:03:01 | Разбор v003 (NLP Engineer (Junior)) score=70.5 ...
+05:03:01 |   режим: rule_based; приоритет: high
+05:03:01 | Разбор v002 (Junior AI Engineer) score=67.5 ...
+05:03:01 |   режим: rule_based; приоритет: medium
+05:03:01 | Разбор v007 (AI Research Intern) score=58.2 ...
+05:03:01 |   режим: rule_based; приоритет: medium
+05:03:01 | Готово. Результат: output/report.md (+ trace.json, run.log)

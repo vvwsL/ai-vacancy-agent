@@ -34,6 +34,16 @@ def render_report(
     )
     lines.append(f"- Прошли hard-фильтр: {meta['scored_count']} | отсеяно по уровню: {len(rejected_hard)}")
 
+    # ---- Вердикт по релевантности (агентность: честно сказать, что не подходит) ----
+    min_score = meta.get("min_score", 45)
+    relevant = [a for a in analyses if a["scored"].score >= min_score]
+    if analyses and not relevant:
+        best = max(a["scored"].score for a in analyses)
+        lines.append(
+            f"- ⚠️ **Подходящих вакансий не найдено**: лучший score {best} < порога {min_score}. "
+            f"Ниже — ближайшие, но они слабо совпадают с профилем (скорее НЕ откликаться)."
+        )
+
     # ---- Профиль кандидата (ключевые пункты резюме) ----
     if profile_info:
         lines.append("")
@@ -42,13 +52,15 @@ def render_report(
     lines.append("")
 
     # ---- Топ ----
-    lines.append(f"## Топ-{len(analyses)} рекомендаций\n")
+    section = "Ближайшие вакансии (подходящих не найдено)" if (analyses and not relevant) else f"Топ-{len(analyses)} рекомендаций"
+    lines.append(f"## {section}\n")
     for i, item in enumerate(analyses, 1):
         sc: Scored = item["scored"]
         an = item["analysis"]
         vac = sc.vacancy
         prio = _PRIORITY_RU.get(an.priority, an.priority)
-        lines.append(f"### {i}. {vac.title} — {vac.company}")
+        verdict = "  ❌ слабое совпадение — скорее не подходит" if sc.score < min_score else ""
+        lines.append(f"### {i}. {vac.title} — {vac.company}{verdict}")
         lines.append(
             f"**Score: {sc.score}/100** | приоритет отклика: **{prio}** | "
             f"режим разбора: `{item['mode']}`  "
