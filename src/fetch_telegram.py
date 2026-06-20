@@ -70,8 +70,10 @@ class _PostExtractor(HTMLParser):
 def fetch_posts(channel: str, limit: int = 20, timeout: int = 30) -> list[tuple[str, str]]:
     """Вернуть последние посты канала как список (текст, ссылка-пермалинк)."""
     name = normalize_channel(channel)
-    if not name:
-        raise TelegramError(f"Не разобрал канал: {channel}")
+    # Имя канала в t.me — латиница/цифры/подчёркивание. Кириллица/<>/пусто = не канал
+    # (например, осталась заглушка вроде <ml_канал>) — пропускаем с понятным сообщением.
+    if not name or not name.isascii() or not all(c.isalnum() or c == "_" for c in name):
+        raise TelegramError(f"некорректное имя канала '{channel}' — вставь реальную ссылку, напр. https://t.me/ml_jobs")
     url = f"https://t.me/s/{name}"
     req = urllib.request.Request(url, headers=_HEADERS)
     try:
@@ -79,7 +81,7 @@ def fetch_posts(channel: str, limit: int = 20, timeout: int = 30) -> list[tuple[
             html = resp.read().decode("utf-8", "ignore")
     except urllib.error.HTTPError as e:
         raise TelegramError(f"Telegram HTTP {e.code} для @{name}") from e
-    except (urllib.error.URLError, TimeoutError) as e:
+    except (urllib.error.URLError, TimeoutError, UnicodeError, ValueError) as e:
         raise TelegramError(f"Сеть/таймаут при чтении @{name}: {e}") from e
 
     html = _BR_RE.sub("\n", html)
