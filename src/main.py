@@ -240,15 +240,21 @@ def _records_from_telegram(args, config, provider, api_key, log: RunLogger) -> l
     if not channels:
         log.log("  telegram пропущен: не заданы каналы")
         return []
-    posts: list[str] = []
+    records: list[dict] = []
+    # По каждому каналу отдельно — иначе при склейке текст обрезается и теряются хвосты.
     for ch in channels:
+        name = normalize_channel(ch)
         try:
-            got = fetch_posts(ch, limit=args.tg_limit)
-            log.log(f"Telegram @{normalize_channel(ch)}: получено постов {len(got)}")
-            posts.extend(got)
+            pairs = fetch_posts(ch, limit=args.tg_limit)
         except TelegramError as e:
-            log.log(f"  пропускаю канал {normalize_channel(ch)}: {e}")
-    return extract_vacancies_from_text(posts, "tg", config, provider, api_key)
+            log.log(f"  пропускаю канал {name}: {e}")
+            continue
+        # В каждый блок кладём ссылку поста, чтобы LLM вернул реальный url вакансии.
+        blocks = [f"URL: {url}\n{text}" if url else text for text, url in pairs]
+        recs = extract_vacancies_from_text(blocks, f"tg-{name}", config, provider, api_key)
+        log.log(f"Telegram @{name}: постов {len(pairs)} -> вакансий {len(recs)}")
+        records.extend(recs)
+    return records
 
 
 def _records_from_pdf(args, config, provider, api_key, log: RunLogger) -> list[dict]:

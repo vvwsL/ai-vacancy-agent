@@ -21,8 +21,19 @@ def test_post_extractor():
     p = _PostExtractor()
     p.feed(_HTML)
     assert len(p.posts) == 3
-    assert "ML Engineer Intern" in p.posts[0]
-    assert "transformers" in p.posts[2]
+    # posts — список (текст, ссылка)
+    assert "ML Engineer Intern" in p.posts[0][0]
+    assert "transformers" in p.posts[2][0]
+
+
+def test_post_extractor_permalink():
+    html = (
+        '<div class="tgme_widget_message" data-post="mlchan/42">'
+        '<div class="tgme_widget_message_text">ML Engineer, Python</div></div>'
+    )
+    p = _PostExtractor()
+    p.feed(html)
+    assert p.posts[0][1] == "https://t.me/mlchan/42"
 
 
 def test_extract_vacancies_rule_based():

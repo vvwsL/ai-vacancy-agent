@@ -275,6 +275,11 @@ def _rule_based_vacancies(posts: list[str], source: str) -> list[dict]:
         if len(post) < 30:  # слишком короткое — вряд ли вакансия
             continue
         lines = [ln.strip() for ln in post.splitlines() if ln.strip()]
+        # Если первый блок — служебная строка 'URL: ...', вытащим ссылку.
+        url = ""
+        if lines and lines[0].lower().startswith("url:"):
+            url = lines[0][4:].strip()
+            lines = lines[1:]
         title = lines[0][:120] if lines else f"Вакансия {i}"
         out.append({
             "id": f"{source}_{i}",
@@ -286,8 +291,8 @@ def _rule_based_vacancies(posts: list[str], source: str) -> list[dict]:
             "work_format": "",
             "city": "",
             "published": "",
-            "description": post[:2000],
-            "url": "",
+            "description": "\n".join(lines)[:2000],
+            "url": url,
         })
     return out
 
@@ -308,7 +313,8 @@ def extract_vacancies_from_text(
     blob = blob[: config.get("max_extract_chars", 12000)]
     system = (
         "Ты извлекаешь вакансии из текста (посты Telegram или текст PDF). "
-        "Тексты разделены '---'. Не каждый блок — вакансия (бывает реклама, новости): такие пропускай. "
+        "Блоки разделены '---'. Не каждый блок — вакансия (бывает реклама, новости): такие пропускай. "
+        "Если блок начинается со строки 'URL: <ссылка>' — скопируй эту ссылку в поле url вакансии. "
         "Для каждой вакансии заполни поля, которых хватает; неизвестное оставь пустым. "
         "Вызови submit_vacancies один раз со списком."
     )

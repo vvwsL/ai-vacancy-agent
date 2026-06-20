@@ -29,16 +29,23 @@ def normalize_channel(value: str) -> str:
 
 
 class _PostExtractor(HTMLParser):
-    """Собирает текст из <div class="...tgme_widget_message_text...">."""
+    """Собирает (текст, ссылку) постов из превью t.me/s/.
+
+    Ссылка берётся из контейнера сообщения (атрибут data-post="канал/123").
+    """
 
     def __init__(self) -> None:
         super().__init__()
-        self.posts: list[str] = []
-        self._depth = 0          # глубина вложенности внутри целевого div
+        self.posts: list[tuple[str, str]] = []
+        self._cur_url = ""       # пермалинк текущего сообщения
+        self._depth = 0          # глубина внутри div сообщения-текста
         self._buf: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        cls = dict(attrs).get("class") or ""
+        d = dict(attrs)
+        cls = d.get("class") or ""
+        if tag == "div" and "tgme_widget_message" in cls and d.get("data-post"):
+            self._cur_url = f"https://t.me/{d['data-post']}"
         if tag == "div" and "tgme_widget_message_text" in cls:
             self._depth = 1
             self._buf = []
@@ -53,15 +60,15 @@ class _PostExtractor(HTMLParser):
             if self._depth == 0:
                 text = "".join(self._buf).strip()
                 if text:
-                    self.posts.append(text)
+                    self.posts.append((text, self._cur_url))
 
     def handle_data(self, data: str) -> None:
         if self._depth:
             self._buf.append(data)
 
 
-def fetch_posts(channel: str, limit: int = 20, timeout: int = 30) -> list[str]:
-    """Вернуть тексты последних постов публичного канала."""
+def fetch_posts(channel: str, limit: int = 20, timeout: int = 30) -> list[tuple[str, str]]:
+    """Вернуть последние посты канала как список (текст, ссылка-пермалинк)."""
     name = normalize_channel(channel)
     if not name:
         raise TelegramError(f"Не разобрал канал: {channel}")
